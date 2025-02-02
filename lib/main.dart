@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:image_editor_plus/image_editor_plus.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
 
 void main() {
   runApp(MyApp());
@@ -40,7 +39,11 @@ class _EditImageState extends State<EditImage> {
   }
 
   Future<void> requestStoragePermission() async {
-    await Permission.storage.request();
+    if (await Permission.storage.request().isGranted) {
+      print("Storage permission granted.");
+    } else {
+      print("Storage permission denied.");
+    }
   }
 
   Future<void> pickImage() async {
@@ -48,20 +51,6 @@ class _EditImageState extends State<EditImage> {
     setState(() {
       image = pickedImage;
     });
-  }
-
-  Future<void> saveImage(Uint8List editedImage) async {
-    final result = await ImageGallerySaver.saveImage(editedImage);
-    
-    if (result['isSuccess']) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Image saved to gallery!"))
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to save image!"))
-      );
-    }
   }
 
   @override
@@ -83,21 +72,28 @@ class _EditImageState extends State<EditImage> {
               padding: EdgeInsets.only(right: 20),
               child: GestureDetector(
                 onTap: () async {
-                  File file = File(image!.path);
-                  Uint8List imgBytes = await file.readAsBytes();
+                  print("Image Path: ${image!.path}");
 
-                  final editedImage = await Navigator.push(
+                  File file = File(image!.path);
+                  bool exists = await file.exists();
+                  print("File Exists: $exists");
+
+                  if (!exists) {
+                    print("Error: Image file not found at path: ${image!.path}");
+                    return;
+                  }
+
+                  Uint8List imgBytes = await file.readAsBytes();
+                  print("Image Size: ${imgBytes.length} bytes");
+
+                  Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => ImageEditor(
-                        images: [imgBytes], 
+                        images: [imgBytes], // ✅ Pass Uint8List
                       ),
                     ),
                   );
-
-                  if (editedImage != null && editedImage is Uint8List) {
-                    await saveImage(editedImage);
-                  }
                 },
                 child: Icon(
                   Icons.edit,
